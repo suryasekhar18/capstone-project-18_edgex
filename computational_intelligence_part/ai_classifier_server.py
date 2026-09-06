@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import numpy as np
 import time  # Import the time library for measuring performance
+from pathlib import Path
 
 # Import models and tools from scikit-learn
 from sklearn.tree import DecisionTreeClassifier, export_text
@@ -10,7 +11,7 @@ from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-app = Flask(_name_)
+app = Flask(__name__)
 
 # --- Global variables for the trained model ---
 model = None
@@ -25,7 +26,8 @@ def train_model():
 
     # 1. Load and prepare the dataset
     try:
-        df = pd.read_csv("priority_dataset.csv")
+        dataset_path = Path(__file__).with_name("priority_dataset.csv")
+        df = pd.read_csv(dataset_path)
         X = df[['traffic_density', 'time_of_day', 'weather', 'visibility']].values
 
         y_labels = df['priority'].values
@@ -89,10 +91,12 @@ def predict_priority():
     """
     Handles incoming requests from the Java simulation to predict priority.
     """
-    if not model:
+    if model is None:
         return jsonify({"error": "Model is not trained yet"}), 500
     try:
-        data = request.json
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"error": "Request body must be a JSON object"}), 400
         sample = np.array([
             data["traffic_density"],
             data["time_of_day"],
@@ -116,7 +120,7 @@ def predict_priority():
         return jsonify({"error": str(e)}), 400
 
 # --- Run Server ---
-if _name_ == "_main_":
+if __name__ == "__main__":
     train_model()
     print("--- AI Classifier Server Ready ---")
     app.run(host="0.0.0.0", port=5000)

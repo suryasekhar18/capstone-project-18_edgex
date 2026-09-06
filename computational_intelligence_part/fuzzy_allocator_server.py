@@ -4,7 +4,7 @@ import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 
-app = Flask(_name_)
+app = Flask(__name__)
 
 # --- Fuzzy System Definition (runs once at startup) ---
 priority = ctrl.Antecedent(np.arange(0, 11, 1), 'priority')
@@ -21,17 +21,23 @@ rule1 = ctrl.Rule(priority['low'], [bandwidth['low'], cpu['low']])
 rule2 = ctrl.Rule(priority['medium'], [bandwidth['medium'], cpu['medium']])
 rule3 = ctrl.Rule(priority['high'], [bandwidth['high'], cpu['high']])
 allocation_ctrl = ctrl.ControlSystem([rule1, rule2, rule3])
-allocation_sim = ctrl.ControlSystemSimulation(allocation_ctrl)
 print("--- Fuzzy Allocator Server ---")
 print("Fuzzy control system ready.")
 
 # --- API Endpoint ---
 @app.route('/allocate_resources', methods=['POST'])
 def allocate_resources():
-    data = request.get_json()
-    priority_label = data.get("priority", "LOW").upper()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Request body must be a JSON object"}), 400
+
+    priority_label = str(data.get("priority", "LOW")).upper()
     priority_map = {"LOW": 2, "MEDIUM": 5, "HIGH": 8}
-    allocation_sim.input['priority'] = priority_map.get(priority_label, 2)
+    if priority_label not in priority_map:
+        return jsonify({"error": "priority must be LOW, MEDIUM, or HIGH"}), 400
+
+    allocation_sim = ctrl.ControlSystemSimulation(allocation_ctrl)
+    allocation_sim.input['priority'] = priority_map[priority_label]
     allocation_sim.compute()
     bw = round(allocation_sim.output['bandwidth'], 2)
     cpu_alloc = round(allocation_sim.output['cpu'], 2)
@@ -45,5 +51,5 @@ def allocate_resources():
 
 # --- Run Server ---
 
-if _name_ == '_main_':
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)

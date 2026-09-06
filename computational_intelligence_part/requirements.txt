@@ -7,3 +7,6 @@ numpy==1.26.4
 
 # Fuzzy logic library
 scikit-fuzzy==0.4.2
+
+# Machine-learning models used by ai_classifier_server.py
+scikit-learn==1.4.0
